@@ -166,11 +166,10 @@ int main()
   srand(time(NULL)); // Текущее время как random seed
 
   // Привязка исполнения к 1 процессору
-  /*
   cpu_set_t mask;
   CPU_ZERO(&mask);
   CPU_SET(0, &mask);
-  sched_setaffinity(0, sizeof(mask), &mask);*/
+  sched_setaffinity(0, sizeof(mask), &mask);
 
   // Заполнение матриц A и B случайными данными
   for (uint_fast32_t i = 0; i < SIZE; i++)
@@ -184,14 +183,14 @@ int main()
 
   // Наивная реализация по формуле из линейной алгебры
   gettimeofday(&start, 0);
-  /*
+  
   for (uint_fast16_t i = 0; i < SIZE; i++) {
     for (uint_fast16_t j = 0; j < SIZE; j++) {
       for (uint_fast16_t k = 0; k < SIZE; k++) {
         C_REFERENCE[i][j] += A[i][k] * B[k][j];
       }
     }
-  }*/
+  }
   gettimeofday(&end, 0);
   printf("1) Формула из линейной алгебры. Прошло времени: %lfs\n", (double)(end.tv_sec - start.tv_sec) + (double)(end.tv_usec - start.tv_usec) * 1e-6);
 
