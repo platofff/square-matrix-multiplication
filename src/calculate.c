@@ -1,47 +1,40 @@
 #define _GNU_SOURCE
+#include <cblas.h>
+#include <float.h>
+#include <immintrin.h>
+#include <math.h>
+#include <sched.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <cblas.h>
-#include <time.h>
-#include <sys/time.h>
-#include <stdint.h>
 #include <string.h>
-#include <sched.h>
-#include <immintrin.h>
-#include <float.h>
-#include <math.h>
-#include <stdbool.h>
-
+#include <sys/time.h>
+#include <time.h>
 
 #define SIZE 4096
 #define PARTSIZE 8
-static double A[SIZE][SIZE], B[SIZE][SIZE], C[SIZE][SIZE] = {{0}}, C_REFERENCE[SIZE][SIZE] = {{0}};
+#define ULP 1024
+
+static double A[SIZE][SIZE], B[SIZE][SIZE], C[SIZE][SIZE] = {{0}},
+                                            C_REFERENCE[SIZE][SIZE] = {{0}};
 struct timeval start, end;
 
-static inline bool approximately_equal(double n1, double n2)
-{
-  return (int)n1 == (int)n2;
+static inline bool approximately_equal(double n1, double n2) {
+  return fabs(n1 - n2) <=
+         ((fabs(n1) < fabs(n2) ? fabs(n2) : fabs(n1)) * DBL_EPSILON * ULP);
 }
 
-static inline double dprod(double *a, double *b) {
-  double s0 = a[0] * b[0],
-         s1 = a[1] * b[1],
-         s2 = a[2] * b[2],
-         s3 = a[3] * b[3],
-         s4 = a[4] * b[4],
-         s5 = a[5] * b[5],
-         s6 = a[6] * b[6],
-         s7 = a[7] * b[7];
+static inline double dprod(double* a, double* b) {
+  double s0 = a[0] * b[0], s1 = a[1] * b[1], s2 = a[2] * b[2], s3 = a[3] * b[3],
+         s4 = a[4] * b[4], s5 = a[5] * b[5], s6 = a[6] * b[6], s7 = a[7] * b[7];
   return (s0 + s1) + (s2 + s3) + (s4 + s5) + (s6 + s7);
 }
 
-void rec_mult(double *C, double *A, double *B, int n, int rowsize)
-{
-  if (n == PARTSIZE)
-  {
+void rec_mult(double* C, double* A, double* B, int n, int rowsize) {
+  if (n == PARTSIZE) {
     double BT[PARTSIZE][PARTSIZE], AA[PARTSIZE][PARTSIZE];
-    for (uint_fast8_t i = 0; i < PARTSIZE; i++)
-    {
+    for (uint_fast8_t i = 0; i < PARTSIZE; i++) {
       BT[0][i] = B[rowsize * i + 0];
       BT[1][i] = B[rowsize * i + 1];
       BT[2][i] = B[rowsize * i + 2];
@@ -69,7 +62,7 @@ void rec_mult(double *C, double *A, double *B, int n, int rowsize)
     C[6] += dprod(&AA[0][0], &BT[6][0]);
     C[7] += dprod(&AA[0][0], &BT[7][0]);
 
-    C[rowsize]     += dprod(&AA[1][0], &BT[0][0]);
+    C[rowsize] += dprod(&AA[1][0], &BT[0][0]);
     C[rowsize + 1] += dprod(&AA[1][0], &BT[1][0]);
     C[rowsize + 2] += dprod(&AA[1][0], &BT[2][0]);
     C[rowsize + 3] += dprod(&AA[1][0], &BT[3][0]);
@@ -78,7 +71,7 @@ void rec_mult(double *C, double *A, double *B, int n, int rowsize)
     C[rowsize + 6] += dprod(&AA[1][0], &BT[6][0]);
     C[rowsize + 7] += dprod(&AA[1][0], &BT[7][0]);
 
-    C[2 * rowsize]     += dprod(&AA[2][0], &BT[0][0]);
+    C[2 * rowsize] += dprod(&AA[2][0], &BT[0][0]);
     C[2 * rowsize + 1] += dprod(&AA[2][0], &BT[1][0]);
     C[2 * rowsize + 2] += dprod(&AA[2][0], &BT[2][0]);
     C[2 * rowsize + 3] += dprod(&AA[2][0], &BT[3][0]);
@@ -87,7 +80,7 @@ void rec_mult(double *C, double *A, double *B, int n, int rowsize)
     C[2 * rowsize + 6] += dprod(&AA[2][0], &BT[6][0]);
     C[2 * rowsize + 7] += dprod(&AA[2][0], &BT[7][0]);
 
-    C[3 * rowsize]     += dprod(&AA[3][0], &BT[0][0]);
+    C[3 * rowsize] += dprod(&AA[3][0], &BT[0][0]);
     C[3 * rowsize + 1] += dprod(&AA[3][0], &BT[1][0]);
     C[3 * rowsize + 2] += dprod(&AA[3][0], &BT[2][0]);
     C[3 * rowsize + 3] += dprod(&AA[3][0], &BT[3][0]);
@@ -96,7 +89,7 @@ void rec_mult(double *C, double *A, double *B, int n, int rowsize)
     C[3 * rowsize + 6] += dprod(&AA[3][0], &BT[6][0]);
     C[3 * rowsize + 7] += dprod(&AA[3][0], &BT[7][0]);
 
-    C[4 * rowsize]     += dprod(&AA[4][0], &BT[0][0]);
+    C[4 * rowsize] += dprod(&AA[4][0], &BT[0][0]);
     C[4 * rowsize + 1] += dprod(&AA[4][0], &BT[1][0]);
     C[4 * rowsize + 2] += dprod(&AA[4][0], &BT[2][0]);
     C[4 * rowsize + 3] += dprod(&AA[4][0], &BT[3][0]);
@@ -105,7 +98,7 @@ void rec_mult(double *C, double *A, double *B, int n, int rowsize)
     C[4 * rowsize + 6] += dprod(&AA[4][0], &BT[6][0]);
     C[4 * rowsize + 7] += dprod(&AA[4][0], &BT[7][0]);
 
-    C[5 * rowsize]     += dprod(&AA[5][0], &BT[0][0]);
+    C[5 * rowsize] += dprod(&AA[5][0], &BT[0][0]);
     C[5 * rowsize + 1] += dprod(&AA[5][0], &BT[1][0]);
     C[5 * rowsize + 2] += dprod(&AA[5][0], &BT[2][0]);
     C[5 * rowsize + 3] += dprod(&AA[5][0], &BT[3][0]);
@@ -114,7 +107,7 @@ void rec_mult(double *C, double *A, double *B, int n, int rowsize)
     C[5 * rowsize + 6] += dprod(&AA[5][0], &BT[6][0]);
     C[5 * rowsize + 7] += dprod(&AA[5][0], &BT[7][0]);
 
-    C[6 * rowsize]     += dprod(&AA[6][0], &BT[0][0]);
+    C[6 * rowsize] += dprod(&AA[6][0], &BT[0][0]);
     C[6 * rowsize + 1] += dprod(&AA[6][0], &BT[1][0]);
     C[6 * rowsize + 2] += dprod(&AA[6][0], &BT[2][0]);
     C[6 * rowsize + 3] += dprod(&AA[6][0], &BT[3][0]);
@@ -123,7 +116,7 @@ void rec_mult(double *C, double *A, double *B, int n, int rowsize)
     C[6 * rowsize + 6] += dprod(&AA[6][0], &BT[6][0]);
     C[6 * rowsize + 7] += dprod(&AA[6][0], &BT[7][0]);
 
-    C[7 * rowsize]     += dprod(&AA[7][0], &BT[0][0]);
+    C[7 * rowsize] += dprod(&AA[7][0], &BT[0][0]);
     C[7 * rowsize + 1] += dprod(&AA[7][0], &BT[1][0]);
     C[7 * rowsize + 2] += dprod(&AA[7][0], &BT[2][0]);
     C[7 * rowsize + 3] += dprod(&AA[7][0], &BT[3][0]);
@@ -131,12 +124,8 @@ void rec_mult(double *C, double *A, double *B, int n, int rowsize)
     C[7 * rowsize + 5] += dprod(&AA[7][0], &BT[5][0]);
     C[7 * rowsize + 6] += dprod(&AA[7][0], &BT[6][0]);
     C[7 * rowsize + 7] += dprod(&AA[7][0], &BT[7][0]);
-  }
-  else
-  {
-    const int d11 = 0,
-              d12 = n / 2,
-              d21 = (n / 2) * rowsize,
+  } else {
+    const int d11 = 0, d12 = n / 2, d21 = (n / 2) * rowsize,
               d22 = (n / 2) * (rowsize + 1);
 
     // C11 += A1B11
@@ -161,9 +150,8 @@ void rec_mult(double *C, double *A, double *B, int n, int rowsize)
   }
 }
 
-int main()
-{
-  srand(time(NULL)); // Текущее время как random seed
+int main() {
+  srand(time(NULL));  // Текущее время как random seed
 
   // Привязка исполнения к 1 процессору
   cpu_set_t mask;
@@ -172,18 +160,21 @@ int main()
   sched_setaffinity(0, sizeof(mask), &mask);
 
   // Заполнение матриц A и B случайными данными
-  for (uint_fast32_t i = 0; i < SIZE; i++)
-  {
-    for (uint_fast32_t j = 0; j < SIZE; j++)
-    {
+  for (uint_fast32_t i = 0; i < SIZE; i++) {
+    for (uint_fast32_t j = 0; j < SIZE; j++) {
       A[i][j] = (double)rand() / RAND_MAX * 100;
       B[i][j] = (double)rand() / RAND_MAX * 100;
     }
   }
 
+  const double c =
+      2.0L * (double)SIZE * (double)SIZE * (double)SIZE;  // c = 2n^3
+  double t, p;
+
   // Наивная реализация по формуле из линейной алгебры
+#ifdef LINEAR_ALGEBRA_FORMULA
   gettimeofday(&start, 0);
-  
+
   for (uint_fast16_t i = 0; i < SIZE; i++) {
     for (uint_fast16_t j = 0; j < SIZE; j++) {
       for (uint_fast16_t k = 0; k < SIZE; k++) {
@@ -191,28 +182,47 @@ int main()
       }
     }
   }
+
   gettimeofday(&end, 0);
-  printf("1) Формула из линейной алгебры. Прошло времени: %lfs\n", (double)(end.tv_sec - start.tv_sec) + (double)(end.tv_usec - start.tv_usec) * 1e-6);
+  t = (double)(end.tv_sec - start.tv_sec) +
+      (double)(end.tv_usec - start.tv_usec) * 1e-6;
+  p = c / t * 1e-6;
+  printf(
+      "1) Формула из линейной алгебры. Прошло времени: %lfс, "
+      "производительность: %lf Mflops\n",
+      t, p);
+#else
+  puts("1) Формула из линейной алгебры. Прошло времени: n/a, производительность: n/a");
+#endif
 
   gettimeofday(&start, 0);
-  cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, SIZE, SIZE, SIZE, 1.0L, &A[0][0], SIZE, &B[0][0], SIZE, 0.0L, &C_REFERENCE[0][0], SIZE);
+  cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, SIZE, SIZE, SIZE, 1.0L,
+              &A[0][0], SIZE, &B[0][0], SIZE, 0.0L, &C_REFERENCE[0][0], SIZE);
   gettimeofday(&end, 0);
-  printf("2) BLAS. Прошло времени: %lfс\n", (double)(end.tv_sec - start.tv_sec) + (double)(end.tv_usec - start.tv_usec) * 1e-6);
+  t = (double)(end.tv_sec - start.tv_sec) +
+      (double)(end.tv_usec - start.tv_usec) * 1e-6;
+  p = c / t * 1e-6;
+  printf("2) BLAS. Прошло времени: %lfс, производительность: %lf Mflops\n", t,
+         p);
 
   gettimeofday(&start, 0);
   rec_mult(&C[0][0], &A[0][0], &B[0][0], SIZE, SIZE);
   gettimeofday(&end, 0);
 
-  printf("3) Моя реализация. Прошло времени: %lfs\n", (double)(end.tv_sec - start.tv_sec) + (double)(end.tv_usec - start.tv_usec) * 1e-6);
-  for (uint_fast32_t i = 0; i < SIZE; i++)
-  {
-    for (uint_fast32_t j = 0; j < SIZE; j++)
-    {
-      if (!approximately_equal(C[i][j], C_REFERENCE[i][j]))
-      {
-        fprintf(stderr, "i=%lu j=%lu Референс %lf Значение %lf\n", i, j, C_REFERENCE[i][j], C[i][j]);
+  t = (double)(end.tv_sec - start.tv_sec) +
+      (double)(end.tv_usec - start.tv_usec) * 1e-6;
+  p = c / t * 1e-6;
+  printf(
+      "3) Моя реализация. Прошло времени: %lfс, производительность: %lf "
+      "Mflops\n",
+      t, p);
+  for (uint_fast32_t i = 0; i < SIZE; i++) {
+    for (uint_fast32_t j = 0; j < SIZE; j++) {
+      if (!approximately_equal(C[i][j], C_REFERENCE[i][j])) {
+        fprintf(stderr, "i=%lu j=%lu Референс %lf Значение %lf\n", i, j,
+                C_REFERENCE[i][j], C[i][j]);
         exit(-1);
-      } // Проверка соответствия результатов моей реализации и BLAS
+      }  // Проверка соответствия результатов моей реализации и BLAS
     }
   }
   puts("Результаты совпадают.");
